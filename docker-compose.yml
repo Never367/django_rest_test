@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:latest
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", 'sh -c "pg_isready -U postgres"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+  web:
+    build: .
+    command: >
+      bash -c "python drf_test/manage.py migrate 
+      && python drf_test/utils/csv_to_fixture.py 
+      && python drf_test/manage.py loaddata Products.json 
+      && python drf_test/manage.py loaddata Reviews.json 
+      && python drf_test/manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
